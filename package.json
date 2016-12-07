@@ -1,0 +1,20 @@
+{
+  "name": "winterpull",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start-db": "java -Djava.library.path=$DYNAMODB_PATH/DynamoDBLocal_lib -jar $DYNAMODB_PATH/DynamoDBLocal.jar -sharedDb -dbPath ./"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dlopuch/winterpull.git"
+  },
+  "author": "Dan Lopuch (http://www.onafloatingrock.com)",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/dlopuch/winterpull/issues"
+  },
+  "homepage": "https://github.com/dlopuch/winterpull#readme"
+}
