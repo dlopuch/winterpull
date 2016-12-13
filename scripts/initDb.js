@@ -14,6 +14,20 @@ AWS.config.update({
 
 var dynamodb = new AWS.DynamoDB();
 
+var createTableSessionsParams = {
+  TableName : "Sessions",
+  KeySchema: [
+    { AttributeName: "id", KeyType: "HASH"},  //Partition key
+  ],
+  AttributeDefinitions: [
+    { AttributeName: "id", AttributeType: "S" },
+  ],
+  ProvisionedThroughput: {
+    ReadCapacityUnits: 1,
+    WriteCapacityUnits: 1
+  }
+};
+
 var createTablePeopleParams = {
   TableName : "People",
   KeySchema: [
@@ -90,7 +104,8 @@ function promiseCreateTable(params) {
   });
 }
 
-promiseCreateTable(createTablePeopleParams)
+promiseCreateTable(createTableSessionsParams)
+.then(() => promiseCreateTable(createTablePeopleParams))
 .then(() => promiseCreateTable(createTableStayParams))
 .then(() => promiseCreateTable(createTableCarStayParams))
 .then(() => promiseCreateTable(createTableGuestTabParams));
