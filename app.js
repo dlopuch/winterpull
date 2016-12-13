@@ -8,7 +8,7 @@ var bodyParser = require('body-parser');
 // Better require naming
 global.requireApp = name => require(__dirname + '/' + name);
 
-const sessionStore = require('./middleware/sessionStore');
+//const sessionStore = require('./middleware/sessionStore');
 const routes = require('./routes/index');
 
 var app = express();
@@ -20,7 +20,7 @@ app.set('view engine', 'jade');
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger('dev'));
-app.use(sessionStore);
+//app.use(sessionStore); // TODO: re-enable when API ready
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());

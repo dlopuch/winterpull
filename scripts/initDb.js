@@ -29,12 +29,12 @@ var createTableSessionsParams = {
 };
 
 var createTablePeopleParams = {
-  TableName : "People",
+  TableName : "Users",
   KeySchema: [
-    { AttributeName: "person_id", KeyType: "HASH"},  //Partition key
+    { AttributeName: "userId", KeyType: "HASH"},  //Partition key
   ],
   AttributeDefinitions: [
-    { AttributeName: "person_id", AttributeType: "S" }
+    { AttributeName: "userId", AttributeType: "S" }
   ],
   ProvisionedThroughput: {
     ReadCapacityUnits: 1,
@@ -43,14 +43,14 @@ var createTablePeopleParams = {
 };
 
 var createTableStayParams = {
-  TableName : "Stay",
+  TableName : "Stays",
   KeySchema: [
-    { AttributeName: "stay_date", KeyType: "HASH"},  //Partition key
-    { AttributeName: "person_id", KeyType: "RANGE" }  //Sort key
+    { AttributeName: "stayDate", KeyType: "HASH"},  //Partition key
+    { AttributeName: "userId", KeyType: "RANGE" }  //Sort key
   ],
   AttributeDefinitions: [
-    { AttributeName: "stay_date", AttributeType: "N" },
-    { AttributeName: "person_id", AttributeType: "S" }
+    { AttributeName: "stayDate", AttributeType: "N" },
+    { AttributeName: "userId", AttributeType: "S" }
   ],
   ProvisionedThroughput: {
     ReadCapacityUnits: 1,
@@ -59,14 +59,14 @@ var createTableStayParams = {
 };
 
 var createTableCarStayParams = {
-  TableName : "Car_Stay",
+  TableName : "Car_Stays",
   KeySchema: [
-    { AttributeName: "stay_date", KeyType: "HASH"},  //Partition key
-    { AttributeName: "person_id", KeyType: "RANGE" }  //Sort key
+    { AttributeName: "stayDate", KeyType: "HASH"},  //Partition key
+    { AttributeName: "userId", KeyType: "RANGE" }  //Sort key
   ],
   AttributeDefinitions: [
-    { AttributeName: "stay_date", AttributeType: "N" },
-    { AttributeName: "person_id", AttributeType: "S" }
+    { AttributeName: "stayDate", AttributeType: "N" },
+    { AttributeName: "userId", AttributeType: "S" }
   ],
   ProvisionedThroughput: {
     ReadCapacityUnits: 1,
@@ -75,14 +75,14 @@ var createTableCarStayParams = {
 };
 
 var createTableGuestTabParams = {
-  TableName : "Guest_Tab",
+  TableName : "Guest_Tabs",
   KeySchema: [
-    { AttributeName: "person_id", KeyType: "HASH"},  //Partition key
-    { AttributeName: "visit_checkin", KeyType: "RANGE" }  //Sort key
+    { AttributeName: "userId", KeyType: "HASH"},  //Partition key
+    { AttributeName: "visitCheckin", KeyType: "RANGE" }  //Sort key
   ],
   AttributeDefinitions: [
-    { AttributeName: "person_id", AttributeType: "S" },
-    { AttributeName: "visit_checkin", AttributeType: "N" }
+    { AttributeName: "userId", AttributeType: "S" },
+    { AttributeName: "visitCheckin", AttributeType: "N" }
   ],
   ProvisionedThroughput: {
     ReadCapacityUnits: 1,

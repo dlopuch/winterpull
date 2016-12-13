@@ -7,7 +7,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node ./bin/www",
-    "start-db": "java -Djava.library.path=$DYNAMODB_PATH/DynamoDBLocal_lib -jar $DYNAMODB_PATH/DynamoDBLocal.jar -sharedDb -dbPath ./"
+    "start-db": "java -Djava.library.path=$DYNAMODB_PATH/DynamoDBLocal_lib -jar $DYNAMODB_PATH/DynamoDBLocal.jar -sharedDb -dbPath ./",
+    "init-db": "node scripts/initDb.js"
   },
   "repository": {
     "type": "git",

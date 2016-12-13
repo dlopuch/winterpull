@@ -2,64 +2,140 @@
 
 const dynamodb = require('./dynamodb');
 
-const STAY_TABLE = 'Stay';
+const STAY_TABLE = 'Stays';
 
 function validateYear(year) {
+  year = parseInt(year, 10);
   if (!(year > 1970 && year < 3000)) {
     throw new Error('Year must be 4 digits');
   }
+  return year;
 }
 
 function validateMonth(month) {
+  month = parseInt(month, 10);
   if (!(month > 0 && month <= 12)) {
     throw new Error('Month must be 2 valid digits (January is 01)');
   }
+  return month;
 }
 
 function validateDay(day) {
+  day = parseInt(day, 10);
   if (!(day > 0 && day <= 31)) {
     throw new Error('Day must be 1-31');
   }
+  return day;
 }
 
-function mapDynamoDbRecord(dynamoRecord) {
+const stringifyYear = (year) => Math.floor(year);
+const stringifyMonth = (month) => (month < 10) ? '0' + Math.floor(month) : '' + Math.floor(month);
+const stringifyDay = (day) => (day < 10) ? '0' + Math.floor(day) : '' + Math.floor(day);
+
+const msDateToIsoDate = (msDateStr) => (new Date(Date(msDateStr))).toISOString();
+
+function deserializeDynamoDbRecord(dynamoRecord) {
   return {
-    stayDate: parseInt(dynamoRecord.stay_date.N, 10),
-    personId: dynamoRecord.person_id.S,
-    something: dynamoRecord.something.S
+    stayDate: parseInt(dynamoRecord.stayDate.N, 10),
+    userId: dynamoRecord.userId.S,
+    dateCreated: msDateToIsoDate(dynamoRecord.dateCreated.N),
+    dateUpdated: msDateToIsoDate(dynamoRecord.dateUpdated.N),
+    isHost: dynamoRecord.isHost.B,
+    hostId: dynamoRecord.hostId.S === 'n/a' ? null : dynamoRecord.hostId.S,
+    //something: dynamoRecord.something.S
   };
 }
 
+
 /**
- * Gets all the Stays for a given year and month
- * @param {number} year
- * @param {number} month january is 01
- * @returns {Promise.<Object>}
+ * Looks up stays based off some criteria.
+ *
+ * If full date specified, lookups are more efficient (full PK used)
+ *
+ * @param {number} [stayQuery.y] Year to look up by, 4-digits
+ * @param {number} [stayQuery.m] Calendar month to look up by (January is 01)
+ * @param {number} [stayQuery.d] Calendar day to look up by (first of the month is 01)
+ * @param {string} [stayQuery.userId] User ID to look up by
+ * @return {Promise.<Array(Stay)>} Returns list of Stays
  */
-exports.getMonthStays = function(year, month) {
+exports.getStays = function(stayQuery) {
   return new Promise((resolve, reject) => {
-    try {
-      validateYear(year);
-      validateMonth(month);
-    } catch (e) {
-      return reject(e);
+    let filters = [];
+    let attributeValues = {};
+    let haveFullPk = false;
+
+    // FILTER: userId
+    if (stayQuery.userId) {
+      filters.push('userId = :userId');
+      attributeValues[':userId'] = { S: stayQuery.userId };
     }
 
-    let params = {
-      TableName: STAY_TABLE,
-      FilterExpression: 'stay_date >= :start_date AND stay_date < :end_date',
-      ExpressionAttributeValues: {
-        ':start_date': {N: '' + Math.floor(year) + Math.floor(month) + '00'}, // note string coercion, eg '2016' + 12 = '201612'
-        ':end_date'  : {N: '' + Math.floor(year) + Math.floor(month + 1) + '00'}
-      },
-      ReturnConsumedCapacity: 'TOTAL', // optional (NONE | TOTAL | INDEXES)
-    };
-    dynamodb.scan(params, function(err, data) {
-      if (err) reject(err); // an error occurred
-      else resolve(data); // successful response
-    });
+
+    // FILTER: partial dates
+    let year = !stayQuery.y ? null : validateYear(stayQuery.y);
+    let month = !stayQuery.m ? null : validateMonth(stayQuery.m);
+    let day = !stayQuery.d ? null : validateDay(stayQuery.d);
+
+    let startDate;
+    let endDate;
+    if (year !== null) {
+      if (month === null) {
+        startDate = stringifyYear(year) + '0000';
+        endDate = stringifyYear(year + 1) + '0000';
+      } else if (day === null) {
+        startDate = stringifyYear(year) + stringifyMonth(month) + '00';
+        endDate   = stringifyYear(year) + stringifyMonth(month + 1) + '00';
+      } else {
+        startDate = stringifyYear(year) + stringifyMonth(month) + stringifyDay(day);
+        haveFullPk = true;
+      }
+    }
+
+    if (haveFullPk) {
+      // We can lookup by PK
+      filters.push('stayDate = :stayDate');
+      attributeValues[':stayDate'] = { N: startDate };
+
+    } else if (startDate) {
+      filters.push('stayDate >= :startDate AND stayDate < :endDate');
+      attributeValues[':startDate'] = { N: startDate };
+      attributeValues[':endDate']   = { N: endDate };
+    }
+
+
+    if (!filters.length) {
+      return reject(new Error('Must specify either date or user filters!'));
+    }
+
+
+    // Use PK lookup if we can
+    if (haveFullPk) {
+      let params = {
+        TableName: STAY_TABLE,
+        KeyConditionExpression: filters.join(' AND '),
+        ExpressionAttributeValues: attributeValues,
+      };
+      dynamodb.query(params, function(err, data) {
+        if (err) reject(err); // an error occurred
+        else resolve(data); // successful response
+      });
+
+    // Otherwise, do a table scan
+    } else {
+      let params = {
+        TableName: STAY_TABLE,
+        FilterExpression: filters.join(' AND '),
+        ExpressionAttributeValues: attributeValues,
+        ReturnConsumedCapacity: 'TOTAL', // optional (NONE | TOTAL | INDEXES)
+      };
+      dynamodb.scan(params, function(err, data) {
+        if (err) reject(err); // an error occurred
+        else resolve(data); // successful response
+      });
+    }
+
   })
-  .then(stays => stays.Items.map(mapDynamoDbRecord));
+  .then(stays => stays.Items.map(deserializeDynamoDbRecord));
 };
 
 /**
@@ -67,30 +143,31 @@ exports.getMonthStays = function(year, month) {
  * @param {number} year
  * @param {number} month Calendar month, January is 01
  * @param {number} day Calendar day, first day is 01
- * @param {string} personId Person email
- * @param {Object} stayObj Stay JSON
+ * @param {Object} stayReq Stay JSON
  * @return {Promise.<Object>}
  */
-exports.createStay = function(year, month, day, personId, stayObj) {
+exports.createStay = function(year, month, day, stayReq) {
   return new Promise((resolve, reject) => {
-    try {
-      validateYear(year);
-      validateMonth(month);
-      validateDay(day);
-    } catch (e) {
-      return reject(e);
-    }
+    validateYear(year);
+    validateMonth(month);
+    validateDay(day);
 
-    if (month < 10) month = '0' + month;
-    if (day < 10) day = '0' + day;
+    let stayObj = {
+      stayDate: { N: '' + year + stringifyMonth(month) + stringifyDay(day) },
+      userId: { S: stayReq.userId },
+      dateCreated: { N: '' + Date.now() },
+      dateUpdated: { N: '' + Date.now() },
 
-    stayObj.stay_date = '' + year + month + day; // note string coercion -- '2016' + 01
-    stayObj.person_id = personId;
+      // Whitelist specific remaining attributes
+      hostId: { S: stayReq.hostId || 'n/a' },
+      isHost: { BOOL: !!stayReq.isHost },
+    };
 
-    dynamodb.put(
+    dynamodb.putItem(
       {
         TableName: STAY_TABLE,
-        Item: stayObj
+        Item: stayObj,
+        ReturnValues: 'ALL_OLD',
       },
       function(error, data) {
         if (error) reject(error);
