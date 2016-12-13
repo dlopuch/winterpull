@@ -65,7 +65,7 @@ exports.getMonthStays = function(year, month) {
 /**
  *
  * @param {number} year
- * @param {number} month Calendary month, January is 01
+ * @param {number} month Calendar month, January is 01
  * @param {number} day Calendar day, first day is 01
  * @param {string} personId Person email
  * @param {Object} stayObj Stay JSON
@@ -81,7 +81,10 @@ exports.createStay = function(year, month, day, personId, stayObj) {
       return reject(e);
     }
 
-    stayObj.stay_date = '' + year + month + day;
+    if (month < 10) month = '0' + month;
+    if (day < 10) day = '0' + day;
+
+    stayObj.stay_date = '' + year + month + day; // note string coercion -- '2016' + 01
     stayObj.person_id = personId;
 
     dynamodb.put(
