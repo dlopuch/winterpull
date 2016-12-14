@@ -10,6 +10,10 @@ router.get('/', function(req, res, next) {
   res.send('respond with a resource');
 })
 
+router.get('/session', function(req, res, next) {
+  res.json(req.session);
+});
+
 router.post('/invite', function(req, res, next) {
   req.body.inviteCode = 'INV_' + Math.random();
   user.createUser(

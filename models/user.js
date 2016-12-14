@@ -38,6 +38,10 @@ function deserializeDynamoDbRecord(dynamoUser, useFull) {
  */
 exports.getUser = function(userId, getFull) {
   return new Promise((resolve, reject) => {
+    if (!userId) {
+      return reject(new Error('Missing userId!'));
+    }
+
     let params = {
       TableName: USER_TABLE,
       Key: {
@@ -49,8 +53,11 @@ exports.getUser = function(userId, getFull) {
     dynamodb.getItem(params, function(error, data) {
       if (error) return reject(error);
 
-      if (!data) {
-        return reject(new Error('User not found'));
+      if (!data || !data.Item) {
+        let e = new Error('User not found');
+        e.code = 'UserNotFound';
+        e.status = 400;
+        return reject(e);
       }
 
       resolve(deserializeDynamoDbRecord(data.Item, getFull));
@@ -66,7 +73,13 @@ exports.getUser = function(userId, getFull) {
  */
 exports.validatePassword = function(userId, password) {
   return exports.getUser(userId, true)
-  .then(user => bcrypt.compare('' + password, user._password));
+  .then(
+    user => bcrypt.compare('' + password, user._password),
+    error => {
+      if (error.code === 'UserNotFound') return false;
+      return Promise.reject(error);
+    }
+  );
 };
 
 
