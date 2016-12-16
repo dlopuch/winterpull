@@ -38,4 +38,37 @@ passport.deserializeUser(function(userId, callback) {
   .catch(callback);
 });
 
-module.exports = passport;
+/**
+ * This is the MW that handles authentication.  Mount this at `POST /login` or similar
+ */
+const authenticationMw = passport.authenticate('local', {
+  successRedirect: '/',
+  failureMessage: true, // Sets any messages from validation callback onto req.session.messages
+});
+
+/**
+ * On a failed login, a failure message will be added to session.messages.  This MW can pull those messages down in JSON.
+ */
+const getAuthenticateMessagesMw = function getAuthenticateMessagesMw(req, res, next) {
+  let messages = req.session.messages;
+  delete req.session.messages;
+  res.json({ messages: messages || [] });
+}
+
+const makeUserIsAuthenticatedGate = function makeUserIsAuthenticatedGate(redirectUrl) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.redirect(401, redirectUrl);
+    }
+
+    next();
+  };
+};
+
+
+module.exports = {
+  authenticationMw,
+  getAuthenticateMessagesMw,
+  makeUserIsAuthenticatedGate,
+  passport,
+};

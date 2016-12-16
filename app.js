@@ -9,7 +9,7 @@ var bodyParser = require('body-parser');
 global.requireApp = name => require(__dirname + '/' + name);
 
 const sessionStore = require('./middleware/sessionStore');
-const passport = require('./middleware/passport');
+const passportMw = require('./middleware/passport');
 
 const routes = require('./routes/index');
 
@@ -30,8 +30,8 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(sessionStore);
-app.use(passport.initialize());
-app.use(passport.session());
+app.use(passportMw.passport.initialize());
+app.use(passportMw.passport.session());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', routes);

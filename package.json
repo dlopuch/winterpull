@@ -8,7 +8,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node ./bin/www",
     "start-db": "java -Djava.library.path=$DYNAMODB_PATH/DynamoDBLocal_lib -jar $DYNAMODB_PATH/DynamoDBLocal.jar -sharedDb -dbPath ./",
-    "init-db": "node scripts/initDb.js"
+    "init-db": "node scripts/initDb.js",
+    "test-api": "mocha tests/api",
+    "test": "npm run test-api"
   },
   "repository": {
     "type": "git",

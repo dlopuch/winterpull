@@ -40,3 +40,4 @@ jspm_packages
 # DynamoDB file
 shared-local-instance.db
 env.prod.*
+cookie*.txt
