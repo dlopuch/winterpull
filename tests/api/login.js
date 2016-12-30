@@ -7,7 +7,7 @@ const app = requireApp('app');
 const userContexts = require('./userContexts');
 
 describe('Login', function() {
-  let userContext = userContexts.newUser; // request.agent(app); // creates new cookie jar for login cookies
+  let userContext = userContexts.dolores;
   before('should start logged-out', () => userContext.promiseLogout());
 
 
@@ -76,7 +76,7 @@ describe('Login', function() {
       .redirects(0)
       .expect(200)
       .expect(function(res) {
-        assert.equal(res.body.user.userId, 'new@user.com');
+        assert.equal(res.body.user.userId, 'dolores@hosts.com');
       });
     });
   });

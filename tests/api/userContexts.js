@@ -1,11 +1,25 @@
 "use strict";
 
+/* User Contexts
+ *
+ * Exposes some supertest instances scoped to cookie jars holding specific user login credentials.
+ *
+ * To use:
+ *   myUser = userContexts.someUser;  // supertest instance
+ *
+ *   before('should be logged-in', () => myUser.promiseLogin());  // logs-in the user context if not already so
+ *
+ *   it('should hit some endpoint', function() {
+ *     return myUser.post('/foo').send(...).expect(...); // use it like any supertest instance
+ *   });
+ */
+
 const request = require('supertest');
 
 const app = requireApp('app');
 
 function makeUserContext(userId, password) {
-  let agent = request.agent(app);
+  let agent = request.agent(app); // creates new cookie jar for login cookies
 
   let isLoggedIn = false;
 
@@ -40,11 +54,10 @@ function makeUserContext(userId, password) {
     });
   };
 
-
   return agent;
 }
 
 module.exports = {
-  newUser: makeUserContext('new@user.com', '999')
+  dolores: makeUserContext('dolores@hosts.com', 'm@ze')
 };
 

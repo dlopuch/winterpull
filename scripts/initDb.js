@@ -14,6 +14,9 @@ AWS.config.update({
 
 var dynamodb = new AWS.DynamoDB();
 
+const VERBOSE = require.main === module;
+
+
 var createTableSessionsParams = {
   TableName : "Sessions",
   KeySchema: [
@@ -98,14 +101,23 @@ function promiseCreateTable(params) {
         e.error = error;
         return reject(e)
       }
-      console.log(`\nCreated table ${params.TableName}. Table description JSON: ${JSON.stringify(data, null, 2)}`);
+      console.log(`\nCreated table ${params.TableName}. ${ !VERBOSE ? '' : `Table description JSON: ${JSON.stringify(data, null, 2)}`}`);
       resolve(data);
     });
   });
 }
 
-promiseCreateTable(createTableSessionsParams)
-.then(() => promiseCreateTable(createTablePeopleParams))
-.then(() => promiseCreateTable(createTableStayParams))
-.then(() => promiseCreateTable(createTableCarStayParams))
-.then(() => promiseCreateTable(createTableGuestTabParams));
+function doScript() {
+  return promiseCreateTable(createTableSessionsParams)
+  .then(() => promiseCreateTable(createTablePeopleParams))
+  .then(() => promiseCreateTable(createTableStayParams))
+  .then(() => promiseCreateTable(createTableCarStayParams))
+  .then(() => promiseCreateTable(createTableGuestTabParams));
+}
+
+module.exports = doScript;
+
+// execute if called directly
+if (require.main === module) {
+  doScript();
+}
