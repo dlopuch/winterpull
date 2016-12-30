@@ -60,6 +60,8 @@ function makeUserContext(userId, password) {
 }
 
 module.exports = {
-  dolores: makeUserContext('dolores@hosts.com', 'm@ze')
+  dolores: makeUserContext('dolores@hosts.com', 'm@ze'),
+  bernard: makeUserContext('bernard@hosts.com', 'm@ze'),
+  william: makeUserContext('william@guests.com', 'ilikeblack'),
 };
 

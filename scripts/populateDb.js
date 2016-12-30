@@ -20,7 +20,27 @@ function doScript() {
       inviteCode: 'seed'
     }
   )
-  .then(() => console.log('Dolores created'));
+  .then(() => userModel.createUser(
+    SEED_SCRIPT_INVITER,
+    { userId: 'bernard@hosts.com',
+      password: 'm@ze',
+      name: 'Bernard',
+      isHost: true,
+      isAdmin: true,
+      inviteCode: 'seed'
+    }
+  ))
+  .then(() => userModel.createUser(
+    SEED_SCRIPT_INVITER,
+    { userId: 'william@guests.com',
+      password: 'ilikeblack',
+      name: 'William',
+      isHost: false,
+      isAdmin: false,
+      inviteCode: 'seed'
+    }
+  ))
+  .then(() => console.log('Users created'))
 }
 
 module.exports = doScript;

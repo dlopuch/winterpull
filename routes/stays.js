@@ -1,7 +1,9 @@
 "use strict";
 
 const router = require('express').Router();
+const userModel = requireApp('models/user');
 const stayModel = requireApp('models/stay');
+const UserError = requireApp('models/UserError');
 
 /* GET stays listing. */
 router.get('/:yearOrUser', function(req, res, next) {
@@ -40,7 +42,8 @@ router.post('/', function(req, res, next) {
   let stayReq = req.body;
   let isStayForSelf = !stayReq.userId;
 
-  // Only hosts can create stays for guests, need to validate current user's host-status
+  // BUSINESS RULE: Only hosts can create stays (guests need a host to create it for them).
+  // Validate current user is host
   if (!req.user.isHost) {
     return next(new UserError('Only hosts can create stays.  Ask your host to sponsor you on this day.'));
   }
@@ -53,16 +56,26 @@ router.post('/', function(req, res, next) {
       return resolve(req.user);
     }
 
-    return userModel.getUser(stayReq.userId)
-    .catch((error) => {
-      if (error.code === 'UserNotFound') {
-        let e = new Error('Unknown user specified for stay');
-        e.status = 400;
-        throw e;
-      }
+    return resolve(
+      userModel.getUser(stayReq.userId)
+      .catch((error) => {
+        if (error.code === 'UserNotFound') {
+          let e = new UserError('Unknown user specified for stay');
+          e.prevError = error;
+          throw e;
+        }
 
-      throw error;
-    });
+        throw error;
+      })
+      .then(stayUser => {
+        // BUSINESS RULE: If creating stay for someone else, the someone else must not be a host themselves
+        if (stayUser.isHost) {
+          throw new UserError('Cannot create a stay for another host -- they must create their own stay.');
+        }
+
+        return stayUser;
+      })
+    );
   }))
   .then((theStayUser) => {
     stayUser = theStayUser;
