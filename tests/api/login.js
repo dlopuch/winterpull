@@ -4,13 +4,18 @@ const assert = require('chai').assert;
 const request = require('supertest');
 
 const app = requireApp('app');
+const userContexts = require('./userContexts');
 
 describe('Login', function() {
-  let agent = request.agent(app); // creates new cookie jar for login cookies
+  let userContext = userContexts.newUser; // request.agent(app); // creates new cookie jar for login cookies
+  before('should start logged-out', () => userContext.promiseLogout());
+
 
   describe('Login permission gate', function() {
+    before('should start logged-out', () => userContext.promiseLogout());
+
     it('should block all API requests', function() {
-      return agent
+      return userContext
       .post('/api')
       .redirects(0)
       .expect(401);
@@ -18,15 +23,17 @@ describe('Login', function() {
   });
 
   describe('Unsuccessful Login', function() {
+    before('should start logged-out', () => userContext.promiseLogout());
+
     it('should fail, no redirect', function() {
-      return agent
+      return userContext
       .post('/login')
       .send({ userId: 'new@user.com', password: '9990' })
       .expect(401);
     });
 
     it('should have session messages after failed attempt', function() {
-      return agent
+      return userContext
       .get('/login')
       .set('Accept', 'application/json')
       .expect(200)
@@ -38,7 +45,7 @@ describe('Login', function() {
     });
 
     it('should clear session messages after retrieving them last request', function() {
-      return agent
+      return userContext
       .get('/login')
       .set('Accept', 'application/json')
       .expect(200)
@@ -48,7 +55,7 @@ describe('Login', function() {
     });
 
     it('should block all API requests on failed login', function() {
-      return agent
+      return userContext
       .post('/api')
       .redirects(0)
       .expect(401)
@@ -57,17 +64,14 @@ describe('Login', function() {
   });
 
   describe('Successful Logins', function() {
+    before('should start logged-out', () => userContext.promiseLogout());
+
     it('should redirect to main page on good login', function() {
-      return agent
-      .post('/login')
-      .send({ userId: 'new@user.com', password: '999' })
-      .redirects(0)
-      .expect(302)
-      .expect('Location', '/');
+      return userContext.promiseLogin();
     });
 
     it('should succeed routes when session cookie logged in', function() {
-      return agent
+      return userContext
       .get('/api')
       .redirects(0)
       .expect(200)
@@ -78,8 +82,10 @@ describe('Login', function() {
   });
 
   describe('Logouts', function() {
+    before('should start logged-in', () => userContext.promiseLogin());
+
     it('should logout request', function() {
-      return agent
+      return userContext
       .get('/logout')
       .redirects(0)
       .expect(302)
@@ -87,7 +93,7 @@ describe('Login', function() {
     });
 
     it('should block all API requests on a logout', function() {
-      return agent
+      return userContext
       .post('/api')
       .redirects(0)
       .expect(401)
