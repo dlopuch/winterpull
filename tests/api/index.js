@@ -14,3 +14,4 @@ before('DB is cleared', function() {
 });
 
 require('./login');
+require('./stays');

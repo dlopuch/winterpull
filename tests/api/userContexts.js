@@ -23,6 +23,8 @@ function makeUserContext(userId, password) {
 
   let isLoggedIn = false;
 
+  agent.userId = userId;
+
   agent.promiseLogin = function() {
     if (isLoggedIn) {
       return Promise.resolve();

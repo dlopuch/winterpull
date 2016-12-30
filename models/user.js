@@ -3,6 +3,7 @@
 const _ = require('lodash');
 const bcrypt = require('bcrypt');
 const dynamodb = require('./dynamodb');
+const UserError = require('./UserError');
 
 const USER_TABLE = 'Users';
 const BCRYPT_SALT_ROUNDS = 10;
@@ -54,9 +55,8 @@ exports.getUser = function(userId, getFull) {
       if (error) return reject(error);
 
       if (!data || !data.Item) {
-        let e = new Error('User not found');
+        let e = new UserError('User not found');
         e.code = 'UserNotFound';
-        e.status = 400;
         return reject(e);
       }
 

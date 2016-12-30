@@ -3,7 +3,6 @@
 const assert = require('chai').assert;
 const request = require('supertest');
 
-const app = requireApp('app');
 const userContexts = require('./userContexts');
 
 describe('Login', function() {
@@ -85,11 +84,7 @@ describe('Login', function() {
     before('should start logged-in', () => userContext.promiseLogin());
 
     it('should logout request', function() {
-      return userContext
-      .get('/logout')
-      .redirects(0)
-      .expect(302)
-      .expect('Location', '/login');
+      return userContext.promiseLogout();
     });
 
     it('should block all API requests on a logout', function() {

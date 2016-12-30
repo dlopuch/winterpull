@@ -38,24 +38,52 @@ router.get('/:year/:month/:day/:userId', function(req, res, next) {
 
 router.post('/', function(req, res, next) {
   let stayReq = req.body;
-  let stay = req.body;
-  let requestingUserId = req.user && req.user.id || 'TODO session user';
+  let isStayForSelf = !stayReq.userId;
 
-  if (!stayReq.userId) {
-    stay.userId = requestingUserId;
-    stay.hostId = null;
-    stay.isHost = true; // TODO: Get user info
-  } else {
-    stay.userId = stayReq.userId;
-    stay.hostId = requestingUserId; // TODO: Only if requesting user is a host
-    stay.isHost = false; // TODO get user info
+  // Only hosts can create stays for guests, need to validate current user's host-status
+  if (!req.user.isHost) {
+    return next(new UserError('Only hosts can create stays.  Ask your host to sponsor you on this day.'));
   }
 
-  // TODO: Only hosts can create stays for guests, need to validate current user's host-status
+  let stayUser;
 
-  stayModel.createStay(stay.y, stay.m, stay.d, stay)
-  .then((record) => res.status(200).json(record))
-  .catch(next);
+  return (new Promise(function promiseStayUser(resolve, reject) {
+    if (isStayForSelf) {
+      // Assume reserving a stay for self -- use session user
+      return resolve(req.user);
+    }
+
+    return userModel.getUser(stayReq.userId)
+    .catch((error) => {
+      if (error.code === 'UserNotFound') {
+        let e = new Error('Unknown user specified for stay');
+        e.status = 400;
+        throw e;
+      }
+
+      throw error;
+    });
+  }))
+  .then((theStayUser) => {
+    stayUser = theStayUser;
+
+    let stay = {
+      userId: stayUser.userId,
+      hostId: isStayForSelf ? null : req.user.userId,
+      isHost: stayUser.isHost
+    };
+
+    return stayModel.createStay(stayReq.y, stayReq.m, stayReq.d, stay);
+  })
+  .then(() => stayModel.getStays({y: stayReq.y, m: stayReq.m, d: stayReq.d, userId: stayUser.userId}))
+  .then(stays => {
+    if (!stays.length) {
+      throw new Error('Unexpected case: could not find newly-created stay!');
+    }
+
+    res.json(stays[0]);
+  })
+  .catch(error => next(error));
 });
 
 module.exports = router;

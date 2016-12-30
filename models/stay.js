@@ -40,7 +40,7 @@ function deserializeDynamoDbRecord(dynamoRecord) {
     userId: dynamoRecord.userId.S,
     dateCreated: msDateToIsoDate(dynamoRecord.dateCreated.N),
     dateUpdated: msDateToIsoDate(dynamoRecord.dateUpdated.N),
-    isHost: dynamoRecord.isHost.B,
+    isHost: dynamoRecord.isHost.BOOL,
     hostId: dynamoRecord.hostId.S === 'n/a' ? null : dynamoRecord.hostId.S,
     //something: dynamoRecord.something.S
   };
