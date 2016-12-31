@@ -63,5 +63,7 @@ module.exports = {
   dolores: makeUserContext('dolores@hosts.com', 'm@ze'),
   bernard: makeUserContext('bernard@hosts.com', 'm@ze'),
   william: makeUserContext('william@guests.com', 'ilikeblack'),
+  guest2: makeUserContext('guest2@guests.com', 'guestyMcGuestface'),
+  guest3: makeUserContext('guest3@guests.com', 'guestyMcGuestface'),
 };
 

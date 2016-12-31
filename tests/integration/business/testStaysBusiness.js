@@ -14,10 +14,14 @@ describe('Stays Business', function() {
   let hostUser;
   let anotherHostUser;
   let guestUser;
+  let guest2User;
+  let guest3User;
 
   before('loads hostUser', () => userModel.getUser(userContexts.dolores.userId).then(user => hostUser = user));
   before('loads anotherHostUser', () => userModel.getUser(userContexts.bernard.userId).then(user => anotherHostUser = user));
   before('loads guestUser', () => userModel.getUser(userContexts.william.userId).then(user => guestUser = user));
+  before('loads guestUser2', () => userModel.getUser(userContexts.guest2.userId).then(user => guest2User = user));
+  before('loads guestUser3', () => userModel.getUser(userContexts.guest3.userId).then(user => guest3User = user));
 
   function assertDeepStayMinusDates(test, expected) {
     assert.isString(test.dateCreated);
@@ -28,22 +32,32 @@ describe('Stays Business', function() {
     assert.deepEqual(test, expected);
   }
 
-  describe('#createStay', function() {
-    const stayDateQuery = {
-      y: 2017,
-      m: 1,
-      d: 1,
-    };
+  const stayDateQueryJan = {
+    y: 2017,
+    m: 1,
+    d: 1,
+  };
+  const stayDateQueryDec31 = {
+    y: 2016,
+    m: 12,
+    d: 31,
+  };
+  const stayDateQueryDec20 = {
+    y: 2016,
+    m: 12,
+    d: 20,
+  };
 
+  describe('#createStay', function() {
     before('starts with no stays', function() {
-      return stayModel.getStays(stayDateQuery)
+      return stayModel.getStays(stayDateQueryJan)
       .then(stays => {
         assert.deepEqual(stays, []);
       });
     });
 
     it('can create a stay for a host', function() {
-      return staysBusiness.createStay(hostUser, stayDateQuery)
+      return staysBusiness.createStay(hostUser, stayDateQueryJan)
       .then(stay => {
         assertDeepStayMinusDates(
           stay,
@@ -58,7 +72,7 @@ describe('Stays Business', function() {
     });
 
     it('refuses to create a stay for a non-host by a non-host', function() {
-      return staysBusiness.createStay(guestUser, stayDateQuery)
+      return staysBusiness.createStay(guestUser, stayDateQueryJan)
       .then(() => { throw new Error('should have failed'); })
       .catch(error => {
         assert.equal(error.message, 'Only hosts can create stays.  Ask your host to sponsor you on this day.');
@@ -66,7 +80,7 @@ describe('Stays Business', function() {
     });
 
     it('refuses to create a stay for a host by a non-host', function() {
-      return staysBusiness.createStay(guestUser, _.extend(stayDateQuery, { userId: hostUser.userId }))
+      return staysBusiness.createStay(guestUser, _.extend(stayDateQueryJan, { userId: hostUser.userId }))
       .then(() => { throw new Error('should have failed'); })
       .catch(error => {
         assert.equal(error.message, 'Only hosts can create stays.  Ask your host to sponsor you on this day.');
@@ -74,7 +88,7 @@ describe('Stays Business', function() {
     });
 
     it('refuses to create stays for other hosts by hosts', function() {
-      return staysBusiness.createStay(hostUser, _.extend(stayDateQuery, { userId: anotherHostUser.userId }))
+      return staysBusiness.createStay(hostUser, _.extend(stayDateQueryJan, { userId: anotherHostUser.userId }))
       .then(() => { throw new Error('should have failed'); })
       .catch(error => {
         assert.equal(error.message, 'Cannot create a stay for another host -- they must create their own stay.');
@@ -82,7 +96,7 @@ describe('Stays Business', function() {
     });
 
     it('creates a stay for a non-host by a host', function() {
-      return staysBusiness.createStay(hostUser, _.extend(stayDateQuery, { userId: guestUser.userId }))
+      return staysBusiness.createStay(hostUser, _.extend(stayDateQueryJan, { userId: guestUser.userId }))
       .then(stay => {
         assertDeepStayMinusDates(
           stay,
@@ -97,7 +111,7 @@ describe('Stays Business', function() {
     });
 
     it('makes the stays appear in daily search', function() {
-      return stayModel.getStays({ y: stayDateQuery.y, m: stayDateQuery.m, d: stayDateQuery.d })
+      return stayModel.getStays({ y: stayDateQueryJan.y, m: stayDateQueryJan.m, d: stayDateQueryJan.d })
       .then(stays => {
         assert.lengthOf(stays, 2);
 
@@ -110,7 +124,7 @@ describe('Stays Business', function() {
     });
 
     it('makes the stays appear in monthly search', function() {
-      return stayModel.getStays({ y: stayDateQuery.y, m: stayDateQuery.m })
+      return stayModel.getStays({ y: stayDateQueryJan.y, m: stayDateQueryJan.m })
       .then(stays => {
         assert.lengthOf(stays, 2);
 
@@ -125,14 +139,77 @@ describe('Stays Business', function() {
   });
 
   describe('#getDayStaysAndStats', function() {
-    it('grabs stats', function() {
-      return staysBusiness.getDayStaysAndStats({ y: 2017, m: 1, d: 1 })
-      .then(staysAndStats => {
-        assert.deepEqual(staysAndStats, {});
+    before('starts with two stays from prev suite', function() {
+      return stayModel.getStays({ y: stayDateQueryJan.y, m: stayDateQueryJan.m })
+      .then(stays => {
+        assert.lengthOf(stays, 2);
+
+        assert.equal(stays[0].userId, hostUser.userId);
+        assert.equal(stays[0].stayDate, 20170101);
+
+        assert.equal(stays[1].userId, guestUser.userId);
+        assert.equal(stays[1].stayDate, 20170101);
       });
     });
 
-    // HEYDAN! ABOVE LOOKS GOOD.  Fix the deep-equal, then test other scenarios.
+    before('creates a few previous guest stays', function() {
+      // anotherHostUser has a guest staying tonight
+      return staysBusiness.createStay(anotherHostUser, _.extend(stayDateQueryJan, { userId: guest3User.userId }))
+
+      // hostUser has three previous guest-nights from 2 guests
+      .then(() => staysBusiness.createStay(hostUser, _.extend(stayDateQueryDec31, { userId: guestUser.userId })))
+      .then(() => staysBusiness.createStay(hostUser, _.extend(stayDateQueryDec31, { userId: guest2User.userId })))
+      .then(() => staysBusiness.createStay(hostUser, _.extend(stayDateQueryDec20, { userId: guest2User.userId })))
+
+      // anotherHostUser has one previous guest-night
+      .then(() => staysBusiness.createStay(anotherHostUser, _.extend(stayDateQueryDec31, { userId: guest3User.userId })));
+    });
+
+    it('calculates stats correctly', function() {
+      return staysBusiness.getDayStaysAndStats({ y: 2017, m: 1, d: 1 })
+      .then(staysAndStats => {
+        let expectedGuestNightsByHost = {};
+        expectedGuestNightsByHost[hostUser.userId] = 3;
+        expectedGuestNightsByHost[anotherHostUser.userId] = 1;
+
+        assert.deepEqual(staysAndStats.guestNightsByHost, expectedGuestNightsByHost);
+
+        let expectedGuestStays = [
+          { stayDate: 20170101,
+            userId: guest3User.userId, // note lower priority is first even though created second
+            isHost: false,
+            hostId: anotherHostUser.userId,
+            priority: 1, // 1 previous guest-night
+          },
+          { stayDate: 20170101,
+            userId: guestUser.userId,
+            isHost: false,
+            hostId: hostUser.userId,
+            priority: 3, // 3 previous guest-night
+          },
+        ];
+        staysAndStats.guestStays.forEach((stay, i) => assertDeepStayMinusDates(stay, expectedGuestStays[i]));
+
+
+        assert.lengthOf(staysAndStats.hostStays, 1);
+        assertDeepStayMinusDates(staysAndStats.hostStays[0], {
+          stayDate: 20170101,
+          userId: hostUser.userId,
+          isHost: true,
+          hostId: null
+        });
+
+        let remaining = _.clone(staysAndStats);
+        delete remaining.guestNightsByHost;
+        delete remaining.guestStays;
+        delete remaining.hostStays;
+        assert.deepEqual(remaining, {
+          maxGuestReservations: 5,
+          maxOccupancy: 18,
+          occupancy: 3
+        });
+      });
+    });
 
   });
 

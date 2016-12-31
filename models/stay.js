@@ -181,14 +181,14 @@ exports.createStay = function(year, month, day, stayReq) {
 /**
  * Counts how many guest-nights a host has had, optionally up to and including a specific date
  * @param {string} hostUserId The host's userId
- * @param {object} beforeDate Date query of up-to-when should guest-nights be calculated
+ * @param {object} beforeDate Counts all guest-nights of the specified host before this date
  * @return {Promise.<Number>} The number of guest-nights
  */
 exports.countHostGuestNights = function(hostUserId, beforeDate) {
   return new Promise((resolve, reject) => {
     let params = {
       TableName: STAY_TABLE,
-      FilterExpression: `hostId = :hostId ${!beforeDate ? '' : 'AND stayDate <= :beforeDate'}`,
+      FilterExpression: `hostId = :hostId ${!beforeDate ? '' : 'AND stayDate < :beforeDate'}`,
       ExpressionAttributeValues: {
         ':hostId': { S: hostUserId },
         ':beforeDate': { N: dateUtils.toDynamoDate(beforeDate) },

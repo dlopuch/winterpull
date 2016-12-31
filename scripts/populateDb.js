@@ -40,6 +40,26 @@ function doScript() {
       inviteCode: 'seed'
     }
   ))
+  .then(() => userModel.createUser(
+    SEED_SCRIPT_INVITER,
+    { userId: 'guest2@guests.com',
+      password: 'guestyMcGuestface',
+      name: 'Guesty 2',
+      isHost: false,
+      isAdmin: false,
+      inviteCode: 'seed'
+    }
+  ))
+  .then(() => userModel.createUser(
+    SEED_SCRIPT_INVITER,
+    { userId: 'guest3@guests.com',
+      password: 'guestyMcGuestface',
+      name: 'Guesty 3',
+      isHost: false,
+      isAdmin: false,
+      inviteCode: 'seed'
+    }
+  ))
   .then(() => console.log('Users created'))
 }
 
