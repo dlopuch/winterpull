@@ -95,7 +95,7 @@ exports.getDayStaysAndStats = function(stayQuery, _curDate) {
     _curDate = Date.now();
   }
 
-  if (!staysQuery.y || !stayQuery.m || !stayQuery.d) {
+  if (!stayQuery.y || !stayQuery.m || !stayQuery.d) {
     return Promise.reject(new Error('Invalid stayQuery: missing y, m, or d'));
   }
 
