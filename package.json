@@ -5,12 +5,13 @@
   "private": true,
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run test-unit && npm run test-integration && npm run test-api",
     "start": "node ./bin/www",
     "start-db": "java -Djava.library.path=$DYNAMODB_PATH/DynamoDBLocal_lib -jar $DYNAMODB_PATH/DynamoDBLocal.jar -sharedDb -dbPath ./",
     "init-db": "node scripts/initDb.js",
     "test-api": "mocha tests/api",
-    "test": "npm run test-api"
+    "test-integration": "mocha tests/integration",
+    "test-unit": "mocha tests/unit"
   },
   "repository": {
     "type": "git",
@@ -33,6 +34,7 @@
     "express-session": "^1.14.2",
     "jade": "~1.11.0",
     "lodash": "^4.17.2",
+    "moment": "^2.17.1",
     "morgan": "~1.7.0",
     "passport": "^0.3.2",
     "passport-local": "^1.0.0",

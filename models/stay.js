@@ -1,6 +1,7 @@
 "use strict";
 
 const dynamodb = require('./dynamodb');
+const dateUtils = requireApp('utils/dateUtils');
 
 const STAY_TABLE = 'Stays';
 
@@ -175,4 +176,30 @@ exports.createStay = function(year, month, day, stayReq) {
       }
     );
   })
+};
+
+/**
+ * Counts how many guest-nights a host has had, optionally up to and including a specific date
+ * @param {string} hostUserId The host's userId
+ * @param {object} beforeDate Date query of up-to-when should guest-nights be calculated
+ * @return {Promise.<Number>} The number of guest-nights
+ */
+exports.countHostGuestNights = function(hostUserId, beforeDate) {
+  return new Promise((resolve, reject) => {
+    let params = {
+      TableName: STAY_TABLE,
+      FilterExpression: `hostId = :hostId ${!beforeDate ? '' : 'AND stayDate <= :beforeDate'}`,
+      ExpressionAttributeValues: {
+        ':hostId': { S: hostUserId },
+        ':beforeDate': { N: dateUtils.toDynamoDate(beforeDate) },
+      },
+      Select: 'COUNT',
+      ConsistentRead: true,
+    };
+
+    dynamodb.scan(params, function(error, data) {
+      if (error) reject(error);
+      else resolve(data.Count);
+    });
+  });
 };

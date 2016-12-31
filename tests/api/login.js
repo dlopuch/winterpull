@@ -3,7 +3,7 @@
 const assert = require('chai').assert;
 const request = require('supertest');
 
-const userContexts = require('./userContexts');
+const userContexts = require('../common/userContexts');
 
 describe('Login', function() {
   let userContext = userContexts.dolores;
