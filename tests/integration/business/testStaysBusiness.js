@@ -2,11 +2,13 @@
 
 const _ = require('lodash');
 const assert = require('chai').assert;
+const moment = require('moment');
 
 const resetAndPopulateDb = requireApp('tests/common/resetAndPopulateDb');
 const userContexts = requireApp('tests/common/userContexts');
 const staysBusiness = requireApp('business/staysBusiness');
 const stayModel = requireApp('models/stay');
+const UserError = requireApp('models/UserError');
 const userModel = requireApp('models/user');
 
 
@@ -52,6 +54,8 @@ describe('Stays Business', function() {
   };
 
   describe('#createStay', function() {
+    let now = new moment.parseZone('2016-12-31T00:00:00.000Z');
+
     before('starts with no stays', function() {
       return stayModel.getStays(stayDateQueryJan)
       .then(stays => {
@@ -60,7 +64,7 @@ describe('Stays Business', function() {
     });
 
     it('can create a stay for a host', function() {
-      return staysBusiness.createStay(hostUser, stayDateQueryJan)
+      return staysBusiness.createStay(hostUser, stayDateQueryJan, now)
       .then(stay => {
         assertDeepStayMinusDates(
           stay,
@@ -75,7 +79,7 @@ describe('Stays Business', function() {
     });
 
     it('refuses to create a stay for a non-host by a non-host', function() {
-      return staysBusiness.createStay(guestUser, stayDateQueryJan)
+      return staysBusiness.createStay(guestUser, stayDateQueryJan, now)
       .then(() => { throw new Error('should have failed'); })
       .catch(error => {
         assert.equal(error.message, 'Only hosts can create stays.  Ask your host to sponsor you on this day.');
@@ -83,7 +87,7 @@ describe('Stays Business', function() {
     });
 
     it('refuses to create a stay for a host by a non-host', function() {
-      return staysBusiness.createStay(guestUser, _.extend(stayDateQueryJan, { userId: hostUser.userId }))
+      return staysBusiness.createStay(guestUser, _.extend(stayDateQueryJan, { userId: hostUser.userId }), now)
       .then(() => { throw new Error('should have failed'); })
       .catch(error => {
         assert.equal(error.message, 'Only hosts can create stays.  Ask your host to sponsor you on this day.');
@@ -91,7 +95,7 @@ describe('Stays Business', function() {
     });
 
     it('refuses to create stays for other hosts by hosts', function() {
-      return staysBusiness.createStay(hostUser, _.extend(stayDateQueryJan, { userId: anotherHostUser.userId }))
+      return staysBusiness.createStay(hostUser, _.extend(stayDateQueryJan, { userId: anotherHostUser.userId }), now)
       .then(() => { throw new Error('should have failed'); })
       .catch(error => {
         assert.equal(error.message, 'Cannot create a stay for another host -- they must create their own stay.');
@@ -99,7 +103,7 @@ describe('Stays Business', function() {
     });
 
     it('creates a stay for a non-host by a host', function() {
-      return staysBusiness.createStay(hostUser, _.extend(stayDateQueryJan, { userId: guestUser.userId }))
+      return staysBusiness.createStay(hostUser, _.extend(stayDateQueryJan, { userId: guestUser.userId }), now)
       .then(stay => {
         assertDeepStayMinusDates(
           stay,
@@ -141,7 +145,57 @@ describe('Stays Business', function() {
 
   });
 
+  describe('#getGuestlistState and #validateGuestlistIsOpen', function() {
+    let stayQuery = {
+      y: 2017,
+      m: 1,
+      d: 14, // saturday
+    };
+
+    it("calculates 'notOpen' state", function() {
+      let now = moment.parseZone('2017-01-06T23:59:59.000Z');
+      assert.equal(staysBusiness.getGuestlistState(stayQuery, now), 'notOpen');
+      assert.throws(
+        staysBusiness.validateGuestlistIsOpen.bind(this, stayQuery, now),
+        UserError, 'Guest signups not yet open -- try 7 days before the desired stay.'
+      );
+    });
+
+    it("calculates 'open' state", function() {
+      let now = moment.parseZone('2017-01-07T00:00:00.000Z');
+      assert.equal(staysBusiness.getGuestlistState(stayQuery, now), 'open');
+      staysBusiness.validateGuestlistIsOpen(stayQuery, now);
+
+      // here we add 8 hours for PST offset, then +12 to get to noon. 8 + 12 = 20.
+      now = moment.parseZone('2017-01-11T19:59:59.000Z');
+      assert.equal(staysBusiness.getGuestlistState(stayQuery, now), 'open');
+      staysBusiness.validateGuestlistIsOpen(stayQuery, now);
+    });
+
+    it("calculates 'fcfs' state", function() {
+      let now = moment.parseZone('2017-01-11T20:00:00.000Z');
+      assert.equal(staysBusiness.getGuestlistState(stayQuery, now), 'fcfs');
+      staysBusiness.validateGuestlistIsOpen(stayQuery, now);
+
+      now = moment.parseZone('2017-01-13T23:59:59.000Z');
+      assert.equal(staysBusiness.getGuestlistState(stayQuery, now), 'fcfs');
+      staysBusiness.validateGuestlistIsOpen(stayQuery, now);
+    });
+
+    it("calculates 'closed' state", function() {
+      let now = moment.parseZone('2017-01-14T00:00:00.000Z');
+      assert.equal(staysBusiness.getGuestlistState(stayQuery, now), 'closed');
+      assert.throws(
+        staysBusiness.validateGuestlistIsOpen.bind(this, stayQuery, now),
+        UserError, 'This date is in the past -- not accepting anymore guest signups.'
+      );
+    });
+  });
+
   describe('#getDayStaysAndStats', function() {
+    let now = new moment.parseZone('2016-12-30T00:00:00.000Z');
+    let nowDec19 = new moment.parseZone('2016-12-19T00:00:00.000Z');
+
     before('starts with two stays from prev suite', function() {
       return stayModel.getStays({ y: stayDateQueryJan.y, m: stayDateQueryJan.m })
       .then(stays => {
@@ -157,19 +211,19 @@ describe('Stays Business', function() {
 
     before('creates a few previous guest stays', function() {
       // anotherHostUser has a guest staying tonight
-      return staysBusiness.createStay(anotherHostUser, _.extend(stayDateQueryJan, { userId: guest3User.userId }))
+      return staysBusiness.createStay(anotherHostUser, _.extend(stayDateQueryJan, { userId: guest3User.userId }), now)
 
       // hostUser has three previous guest-nights from 2 guests
-      .then(() => staysBusiness.createStay(hostUser, _.extend(stayDateQueryDec31, { userId: guestUser.userId })))
-      .then(() => staysBusiness.createStay(hostUser, _.extend(stayDateQueryDec31, { userId: guest2User.userId })))
-      .then(() => staysBusiness.createStay(hostUser, _.extend(stayDateQueryDec20, { userId: guest2User.userId })))
+      .then(() => staysBusiness.createStay(hostUser, _.extend(stayDateQueryDec31, { userId: guestUser.userId }), now))
+      .then(() => staysBusiness.createStay(hostUser, _.extend(stayDateQueryDec31, { userId: guest2User.userId }), now))
+      .then(() => staysBusiness.createStay(hostUser, _.extend(stayDateQueryDec20, { userId: guest2User.userId }), nowDec19))
 
       // anotherHostUser has one previous guest-night
-      .then(() => staysBusiness.createStay(anotherHostUser, _.extend(stayDateQueryDec31, { userId: guest3User.userId })));
+      .then(() => staysBusiness.createStay(anotherHostUser, _.extend(stayDateQueryDec31, { userId: guest3User.userId }), now));
     });
 
     it('calculates prior guest-night stays correctly', function() {
-      return staysBusiness.getDayStaysAndStats({ y: 2017, m: 1, d: 1 })
+      return staysBusiness.getDayStaysAndStats({ y: 2017, m: 1, d: 1 }, moment.parseZone('2016-12-31T23:59:59.000Z'))
       .then(staysAndStats => {
         let expectedGuestNightsByHost = {};
         expectedGuestNightsByHost[hostUser.userId] = 3;
@@ -210,7 +264,8 @@ describe('Stays Business', function() {
           maxGuestReservations: 5,
           maxOccupancy: 18,
           maxHosts: 13,
-          occupancy: 3
+          occupancy: 3,
+          guestlistState: 'fcfs', // from time param
         });
       });
     });

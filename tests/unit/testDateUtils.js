@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require('chai').assert;
+const moment = require('moment');
 
 const dateUtils = requireApp('utils/dateUtils');
 
@@ -61,5 +62,36 @@ describe('dateUtils', function() {
       assert.strictEqual(date, '20170101');
     });
 
+  });
+
+  describe('#getPreviousWednesday', function() {
+    describe('with date query inputs', function() {
+      // Jan 4 and 11, 2017 are wednesdays
+      function assertPrevWed(janDate, use11th) {
+        assert.strictEqual(
+          dateUtils.getPreviousWednesday({ y: 2017, m: 1, d: janDate }).toISOString(),
+          use11th ? '2017-01-11T00:00:00.000Z' : '2017-01-04T00:00:00.000Z'
+        );
+      };
+      it('works for a thurs', () => assertPrevWed('05'));
+      it('works for a fri'  , () => assertPrevWed('06'));
+      it('works for a sat'  , () => assertPrevWed('07'));
+      it('works for a sun'  , () => assertPrevWed('08'));
+      it('works for a mon'  , () => assertPrevWed('09'));
+      it('works for a tues' , () => assertPrevWed('10'));
+      it('works for a wed'  , () => assertPrevWed('11'));
+      it('works for next thurs', () => assertPrevWed('12', true));
+    });
+
+    describe('with Date inputs', function() {
+      it('works for a thurs');
+      it('works for a fri'  );
+      it('works for a sat'  );
+      it('works for a sun'  );
+      it('works for a mon'  );
+      it('works for a tues' );
+      it('works for a wed'  );
+      it('works for next thurs');
+    });
   });
 });

@@ -89,3 +89,24 @@ exports.toDynamoDate = function(date) {
     return stringifyYear(year) + stringifyMonth(month) + stringifyDay(day);
   }
 };
+
+/**
+ * Gets the wednesday prior to a given day.
+ * @param {Date | moment | object} date A day to get previous wednesday
+ * @return {moment} The previous wednesday, 00:00:00 UTC
+ */
+exports.getPreviousWednesday = function(date) {
+  if (date instanceof Date || date instanceof moment) {
+    date = moment(date);
+  } else if (typeof date === 'object' && date.y && date.m && date.d) {
+    date = moment.parseZone(`${date.y}-${date.m}-${date.d}-Z`, 'YYYY-M-D-Z');
+  } else {
+    throw new Error(`Unsupported date: ${JSON.stringify(date, null, 2)}`);
+  }
+
+  let dow = date.day(); // sunday 0, saturday 6
+
+  let offsetToWed = dow > 3 ? dow - 3 : dow + 7 - 3; // 3 is wednesday
+
+  return date.subtract(offsetToWed, 'd').startOf('day');
+};
