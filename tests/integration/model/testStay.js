@@ -96,7 +96,7 @@ describe('Stay Model', function() {
       return stayModel.getStays({ userId: hostUser.userId })
       .then(stays => {
         assert.deepEqual(
-          stays.map(s => s.stayDate).sort(),
+          stays.map(s => s.stayDate),
           [20170101, 20170102, 20170108, 20180101]
         );
       });
@@ -115,7 +115,7 @@ describe('Stay Model', function() {
       return stayModel.getStays({ y: 2017, m: 1 })
       .then(stays => {
         assert.deepEqual(
-          stays.map(s => s.stayDate).sort(),
+          stays.map(s => s.stayDate),
           [20170101, 20170101, 20170102, 20170108, 20170115]
         );
       })
@@ -131,7 +131,7 @@ describe('Stay Model', function() {
       return stayModel.getStays({ y: 2017, m: 1, d: 1 })
       .then(stays => {
         assert.deepEqual(
-          stays.map(s => s.stayDate).sort(),
+          stays.map(s => s.stayDate),
           [20170101, 20170101]
         );
       })
@@ -146,25 +146,22 @@ describe('Stay Model', function() {
     it('searches by year, month, day, numDays', function() {
       return stayModel.getStays({ y: 2017, m: 1, d: 1, numDays: 1 })
       .then(stays => {
-        assert.lengthOf(stays, 2);
         assert.deepEqual(
-          stays.map(s => s.stayDate).sort(),
+          stays.map(s => s.stayDate),
           [20170101, 20170101]
         );
       })
       .then(() => stayModel.getStays({ y: 2017, m: 1, d: 1, numDays: 7 }))
       .then(stays => {
-        assert.lengthOf(stays, 3);
         assert.deepEqual(
-          stays.map(s => s.stayDate).sort(),
+          stays.map(s => s.stayDate),
           [20170101, 20170101, 20170102]
         );
       })
       .then(() => stayModel.getStays({ y: 2017, m: 1, d: 1, numDays: 8 }))
       .then(stays => {
-        assert.lengthOf(stays, 4);
         assert.deepEqual(
-          stays.map(s => s.stayDate).sort(),
+          stays.map(s => s.stayDate),
           [20170101, 20170101, 20170102, 20170108]
         );
       });
@@ -174,7 +171,7 @@ describe('Stay Model', function() {
       return stayModel.getStays({ y: 2017, m: 1, numDays: 8 })
       .then(stays => {
         assert.deepEqual(
-          stays.map(s => s.stayDate).sort(),
+          stays.map(s => s.stayDate),
           [20170101, 20170101, 20170102, 20170108]
         );
       });
@@ -185,8 +182,10 @@ describe('Stay Model', function() {
       .then(stays => assert.lengthOf(stays, 0))
       .then(() => stayModel.getStays({ y: 2017, m: 1, d: 31, numDays: 2 }))
       .then(stays => {
-        assert.lengthOf(stays, 1);
-        assert.equal(stays[0].stayDate, 20170201);
+        assert.deepEqual(
+          stays.map(s => s.stayDate),
+          [20170201]
+        );
       });
     });
 

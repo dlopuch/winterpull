@@ -132,7 +132,7 @@ exports.getStays = function(stayQuery) {
     }
 
   })
-  .then(stays => stays.Items.map(deserializeDynamoDbRecord));
+  .then(stays => _(stays.Items).map(deserializeDynamoDbRecord).sortBy(['stayDate', 'dateCreated']).value());
 };
 
 /**
