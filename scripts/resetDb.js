@@ -16,7 +16,7 @@ function promiseDeleteTable(tableName) {
         e.error = error;
         return reject(error);
       }
-      console.log(`\nDeleted table ${tableName}. ${!VERBOSE ? '' : `Results: ${JSON.stringify(data, null, 2)}`}`);
+      VERBOSE && console.log(`\nDeleted table ${tableName}. ${!VERBOSE ? '' : `Results: ${JSON.stringify(data, null, 2)}`}`);
       resolve(data);
     });
   });
@@ -33,7 +33,7 @@ function waitUntilTableDeleted(tableName) {
         return reject(error);
       }
 
-      console.log(`...waiting for deletion on table ${tableName}`);
+      VERBOSE && console.log(`...waiting for deletion on table ${tableName}`);
       return waitUntilTableDeleted(tableName);
     });
   });
@@ -67,10 +67,10 @@ function deleteTable(tableName) {
 
 
 function doScript() {
-  console.log('\n============================\n== Deleting tables!\n============================');
+  VERBOSE && console.log('\n============================\n== Deleting tables!\n============================');
   return TABLE_NAMES
   .reduce((promiseChain, tableName) => promiseChain.then(() => deleteTable(tableName)), Promise.resolve())
-  .then(() => console.log('\n============================\n== Now recreating tables!\n============================'))
+  .then(() => VERBOSE && console.log('\n============================\n== Now recreating tables!\n============================'))
   .then(() => initDb())
   .then(() => TABLE_NAMES
     .reduce((promiseChain, tableName) => promiseChain.then(() => waitUntilTableCreated(tableName)), Promise.resolve())

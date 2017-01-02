@@ -1,37 +1,12 @@
 "use strict";
 
+const _ = require('lodash');
+const moment = require('moment');
+
 const dynamodb = require('./dynamodb');
 const dateUtils = requireApp('utils/dateUtils');
 
 const STAY_TABLE = 'Stays';
-
-function validateYear(year) {
-  year = parseInt(year, 10);
-  if (!(year > 1970 && year < 3000)) {
-    throw new Error('Year must be 4 digits');
-  }
-  return year;
-}
-
-function validateMonth(month) {
-  month = parseInt(month, 10);
-  if (!(month > 0 && month <= 12)) {
-    throw new Error('Month must be 2 valid digits (January is 01)');
-  }
-  return month;
-}
-
-function validateDay(day) {
-  day = parseInt(day, 10);
-  if (!(day > 0 && day <= 31)) {
-    throw new Error('Day must be 1-31');
-  }
-  return day;
-}
-
-const stringifyYear = (year) => Math.floor(year);
-const stringifyMonth = (month) => (month < 10) ? '0' + Math.floor(month) : '' + Math.floor(month);
-const stringifyDay = (day) => (day < 10) ? '0' + Math.floor(day) : '' + Math.floor(day);
 
 const msDateToIsoDate = (msDateStr) => (new Date(Date(msDateStr))).toISOString();
 
@@ -56,6 +31,7 @@ function deserializeDynamoDbRecord(dynamoRecord) {
  * @param {number} [stayQuery.y] Year to look up by, 4-digits
  * @param {number} [stayQuery.m] Calendar month to look up by (January is 01)
  * @param {number} [stayQuery.d] Calendar day to look up by (first of the month is 01)
+ * @param {number} [stayQuery.numDays] How many days to include in the query
  * @param {string} [stayQuery.userId] User ID to look up by
  * @return {Promise.<Array(Stay)>} Returns list of Stays
  */
@@ -73,24 +49,44 @@ exports.getStays = function(stayQuery) {
 
 
     // FILTER: partial dates
-    let year = !stayQuery.y ? null : validateYear(stayQuery.y);
-    let month = !stayQuery.m ? null : validateMonth(stayQuery.m);
-    let day = !stayQuery.d ? null : validateDay(stayQuery.d);
-
     let startDate;
     let endDate;
-    if (year !== null) {
-      if (month === null) {
-        startDate = stringifyYear(year) + '0000';
-        endDate = stringifyYear(year + 1) + '0000';
-      } else if (day === null) {
-        startDate = stringifyYear(year) + stringifyMonth(month) + '00';
-        endDate   = stringifyYear(year) + stringifyMonth(month + 1) + '00';
-      } else {
-        startDate = stringifyYear(year) + stringifyMonth(month) + stringifyDay(day);
+    if (stayQuery.y) {
+      if (stayQuery.numDays > 31) {
+        stayQuery.numDays = 31;
+      }
+
+      startDate = dateUtils.toDynamoDate(stayQuery);
+
+      if (stayQuery.m && stayQuery.d && !stayQuery.numDays) {
         haveFullPk = true;
+      } else {
+
+        let endQuery = _.clone(stayQuery);
+        if (!endQuery.m) {
+          endQuery.y += 1;
+          endQuery.m = 1;
+          endQuery.d = 1;
+        } else if (!endQuery.d && !endQuery.numDays) {
+          endQuery.m += 1;
+          endQuery.d = 1;
+        } else if (!endQuery.d) {
+          endQuery.d = endQuery.numDays + 1;
+        } else if (endQuery.numDays) {
+          endQuery.d += endQuery.numDays;
+          // note: conversion to moment will do date-arithmitic on date rollover (eg jan 38 --> feb 7)
+        } else {
+          endQuery.d += 1;
+        }
+        endDate = dateUtils.toDynamoDate(
+          moment()
+          .year(endQuery.y)
+          .month(endQuery.m - 1) //moment 0-indexes months >:o
+          .date(endQuery.d)
+        );
       }
     }
+
 
     if (haveFullPk) {
       // We can lookup by PK
@@ -149,12 +145,9 @@ exports.getStays = function(stayQuery) {
  */
 exports.createStay = function(year, month, day, stayReq) {
   return new Promise((resolve, reject) => {
-    validateYear(year);
-    validateMonth(month);
-    validateDay(day);
 
     let stayObj = {
-      stayDate: { N: '' + year + stringifyMonth(month) + stringifyDay(day) },
+      stayDate: { N: dateUtils.toDynamoDate({ y: year, m: month, d: day }) },
       userId: { S: stayReq.userId },
       dateCreated: { N: '' + Date.now() },
       dateUpdated: { N: '' + Date.now() },
@@ -172,7 +165,7 @@ exports.createStay = function(year, month, day, stayReq) {
       },
       function(error, data) {
         if (error) reject(error);
-        else resolve(data);
+        else resolve(true);
       }
     );
   })

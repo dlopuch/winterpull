@@ -3,6 +3,7 @@
 const _ = require('lodash');
 const assert = require('chai').assert;
 
+const resetAndPopulateDb = requireApp('tests/common/resetAndPopulateDb');
 const userContexts = requireApp('tests/common/userContexts');
 const staysBusiness = requireApp('business/staysBusiness');
 const stayModel = requireApp('models/stay');
@@ -10,6 +11,8 @@ const userModel = requireApp('models/user');
 
 
 describe('Stays Business', function() {
+
+  before('DB is cleared', resetAndPopulateDb);
 
   let hostUser;
   let anotherHostUser;
@@ -165,7 +168,7 @@ describe('Stays Business', function() {
       .then(() => staysBusiness.createStay(anotherHostUser, _.extend(stayDateQueryDec31, { userId: guest3User.userId })));
     });
 
-    it('calculates stats correctly', function() {
+    it('calculates prior guest-night stays correctly', function() {
       return staysBusiness.getDayStaysAndStats({ y: 2017, m: 1, d: 1 })
       .then(staysAndStats => {
         let expectedGuestNightsByHost = {};
@@ -206,6 +209,7 @@ describe('Stays Business', function() {
         assert.deepEqual(remaining, {
           maxGuestReservations: 5,
           maxOccupancy: 18,
+          maxHosts: 13,
           occupancy: 3
         });
       });

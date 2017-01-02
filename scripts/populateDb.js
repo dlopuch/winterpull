@@ -7,7 +7,12 @@ const userModel = require('../models/user');
 const SEED_SCRIPT_INVITER = { userId: 'Seed script', isAdmin: true };
 
 
-function doScript() {
+function doScript(silent) {
+  let console = global.console;
+  if (silent) {
+    console = { log: function() {} }
+  }
+
   console.log('\n============================\n== Seeding Users\n============================');
 
   return userModel.createUser(

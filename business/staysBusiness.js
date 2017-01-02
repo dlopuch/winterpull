@@ -8,6 +8,7 @@ const UserError = requireApp('models/UserError');
 
 
 const MAX_OCCUPANCY = 18;
+const MAX_HOSTS = 13;
 const MAX_GUESTS = 5;
 
 
@@ -108,6 +109,7 @@ exports.getDayStaysAndStats = function(stayQuery, _curDate) {
       guestStays: _(stays).filter(s => !s.isHost).value(), // Get sorted once guest-nights retrieved below
 
       maxOccupancy: MAX_OCCUPANCY,
+      maxHosts: MAX_HOSTS,
       maxGuestReservations: MAX_GUESTS,
     };
 

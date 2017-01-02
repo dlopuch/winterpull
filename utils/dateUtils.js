@@ -34,7 +34,7 @@ const msDateToIsoDate = (msDateStr) => (new Date(Date(msDateStr))).toISOString()
 
 /**
  * Converts any kind of date to the standardized dynamodb record date
- * @param {number | string | object | Date} date Some date representation
+ * @param {number | string | Date | moment | object} date Some date representation
  * @return {string} dynamo record date, like '20170101'
  */
 exports.toDynamoDate = function(date) {

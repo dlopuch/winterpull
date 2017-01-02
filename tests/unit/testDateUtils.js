@@ -7,9 +7,14 @@ const dateUtils = requireApp('utils/dateUtils');
 describe('dateUtils', function() {
   describe('#toDynamoDate', function() {
     describe('date query conversion', function() {
-      it('converts a full date-query', function() {
+      it('converts a full date-query, m and d < 10', function() {
         let date = dateUtils.toDynamoDate({ y: 2017, m: 1, d: 1 });
         assert.strictEqual(date, '20170101');
+      });
+
+      it('converts a full date-query, m and d > 10', function() {
+        let date = dateUtils.toDynamoDate({ y: 2017, m: 11, d: 21 });
+        assert.strictEqual(date, '20171121');
       });
 
       it('converts a no-day date-query', function() {

@@ -101,7 +101,7 @@ function promiseCreateTable(params) {
         e.error = error;
         return reject(e)
       }
-      console.log(`\nCreated table ${params.TableName}. ${ !VERBOSE ? '' : `Table description JSON: ${JSON.stringify(data, null, 2)}`}`);
+      VERBOSE && console.log(`\nCreated table ${params.TableName}. ${ !VERBOSE ? '' : `Table description JSON: ${JSON.stringify(data, null, 2)}`}`);
       resolve(data);
     });
   });
