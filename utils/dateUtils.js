@@ -90,12 +90,22 @@ exports.toDynamoDate = function(date) {
   }
 };
 
+exports.moment2DateQuery = function(date) {
+  date = moment(date); // don't mutate
+  return {
+    y: date.year(),
+    m: date.month() + 1, // months are 0-indexed
+    d: date.date(),
+  };
+};
+
 /**
  * Gets the wednesday prior to a given day.
  * @param {Date | moment | object} date A day to get previous wednesday
- * @return {moment} The previous wednesday, 00:00:00 UTC
+ * @param {boolean} [inPST] True to set timezone as PST (-8:00)
+ * @return {moment} The previous wednesday, 00:00:00 UTC (if no inPST) or 00:00:00-08:00 (if inPST)
  */
-exports.getPreviousWednesday = function(date) {
+exports.getPreviousWednesday = function(date, inPST) {
   if (date instanceof Date || date instanceof moment) {
     date = moment(date);
   } else if (typeof date === 'object' && date.y && date.m && date.d) {
@@ -108,5 +118,11 @@ exports.getPreviousWednesday = function(date) {
 
   let offsetToWed = dow > 3 ? dow - 3 : dow + 7 - 3; // 3 is wednesday
 
-  return date.subtract(offsetToWed, 'd').startOf('day');
+  let wednesday = date.subtract(offsetToWed, 'd').startOf('day');
+
+  if (inPST) {
+    wednesday.utcOffset('-08:00');
+  }
+
+  return wednesday;
 };

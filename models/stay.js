@@ -8,7 +8,7 @@ const dateUtils = requireApp('utils/dateUtils');
 
 const STAY_TABLE = 'Stays';
 
-const msDateToIsoDate = (msDateStr) => (new Date(Date(msDateStr))).toISOString();
+const msDateToIsoDate = (msDateStr) => (new Date(parseInt(msDateStr, 10))).toISOString();
 
 function deserializeDynamoDbRecord(dynamoRecord) {
   return {
@@ -141,16 +141,23 @@ exports.getStays = function(stayQuery) {
  * @param {number} month Calendar month, January is 01
  * @param {number} day Calendar day, first day is 01
  * @param {Object} stayReq Stay JSON
+ * @param {Date} [_curDate] Testing only -- current date
  * @return {Promise.<Object>}
  */
-exports.createStay = function(year, month, day, stayReq) {
+exports.createStay = function(year, month, day, stayReq, _curDate) {
   return new Promise((resolve, reject) => {
+    let now = _curDate || Date.now();
+    if (now instanceof moment) {
+      now = now.valueOf();
+    } else if (now instanceof Date) {
+      now = now.getTime();
+    }
 
     let stayObj = {
       stayDate: { N: dateUtils.toDynamoDate({ y: year, m: month, d: day }) },
       userId: { S: stayReq.userId },
-      dateCreated: { N: '' + Date.now() },
-      dateUpdated: { N: '' + Date.now() },
+      dateCreated: { N: '' + now },
+      dateUpdated: { N: '' + now },
 
       // Whitelist specific remaining attributes
       hostId: { S: stayReq.hostId || 'n/a' },

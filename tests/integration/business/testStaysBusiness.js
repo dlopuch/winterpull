@@ -10,6 +10,7 @@ const staysBusiness = requireApp('business/staysBusiness');
 const stayModel = requireApp('models/stay');
 const UserError = requireApp('models/UserError');
 const userModel = requireApp('models/user');
+const dateUtils = requireApp('utils/dateUtils');
 
 
 describe('Stays Business', function() {
@@ -162,7 +163,7 @@ describe('Stays Business', function() {
     });
 
     it("calculates 'open' state", function() {
-      let now = moment.parseZone('2017-01-07T00:00:00.000Z');
+      let now = moment.parseZone('2017-01-07T00:00:00.000-08:00');
       assert.equal(staysBusiness.getGuestlistState(stayQuery, now), 'open');
       staysBusiness.validateGuestlistIsOpen(stayQuery, now);
 
@@ -177,13 +178,13 @@ describe('Stays Business', function() {
       assert.equal(staysBusiness.getGuestlistState(stayQuery, now), 'fcfs');
       staysBusiness.validateGuestlistIsOpen(stayQuery, now);
 
-      now = moment.parseZone('2017-01-13T23:59:59.000Z');
+      now = moment.parseZone('2017-01-14T23:59:59.000Z');
       assert.equal(staysBusiness.getGuestlistState(stayQuery, now), 'fcfs');
       staysBusiness.validateGuestlistIsOpen(stayQuery, now);
     });
 
     it("calculates 'closed' state", function() {
-      let now = moment.parseZone('2017-01-14T00:00:00.000Z');
+      let now = moment.parseZone('2017-01-15T00:00:00.000-08:00');
       assert.equal(staysBusiness.getGuestlistState(stayQuery, now), 'closed');
       assert.throws(
         staysBusiness.validateGuestlistIsOpen.bind(this, stayQuery, now),
@@ -270,6 +271,91 @@ describe('Stays Business', function() {
       });
     });
 
+  });
+
+  describe('#getDayStaysAndStats -- calculating and ordering guest stays', function() {
+    before('DB is cleared', resetAndPopulateDb);
+
+    let todayThurs = moment.parseZone('2017-01-12T20:00:00-08:00');
+
+    let lastThurs = moment(todayThurs).subtract(7, 'days');
+    let lastFri = moment(todayThurs).subtract(6, 'days');
+    let tues = moment(todayThurs).subtract(2, 'days');
+    let wednesdayMorning = moment(todayThurs).subtract(1, 'days').subtract(9, 'hours');
+    let wednedayAfternoon = moment(todayThurs).subtract(1, 'days').subtract(7, 'hours');
+
+    let todayThursQ = dateUtils.moment2DateQuery(todayThurs);
+    let lastThursQ = dateUtils.moment2DateQuery(lastThurs);
+    let lastFriQ = dateUtils.moment2DateQuery(lastFri);
+    let tuesQ = dateUtils.moment2DateQuery(tues);
+    let wednesdayMorningQ = dateUtils.moment2DateQuery(wednesdayMorning);
+    let wednedayAfternoonQ = dateUtils.moment2DateQuery(wednedayAfternoon);
+
+    before('creates previous guest stays', function() {
+      // hostUser has 2 guest nights
+      return staysBusiness.createStay(hostUser, _.extend(lastThursQ, { userId: guestUser.userId }), lastThurs)
+      .then(() => staysBusiness.createStay(hostUser, _.extend(lastFriQ, { userId: guestUser.userId }), lastThurs))
+
+      // anotherHostUser has 1 guest night
+      .then(() => staysBusiness.createStay(anotherHostUser, _.extend(lastFriQ, { userId: guest2User.userId }), lastThurs))
+
+      // hostUser is hosting:
+      //   guest (RSVP'd tues)
+      // anotherHostUser is hosting:
+      //   guest2 (RSVP'd wed morning -- after guest, but lower guest-nights)
+      //   guest3 (RSVP'd wed afternoon -- lower guest-nights, but after noon cut-off)
+      .then(() => staysBusiness.createStay(hostUser, _.extend(todayThursQ, { userId: guestUser.userId }), tues))
+      .then(() => staysBusiness.createStay(anotherHostUser, _.extend(todayThursQ, { userId: guest2User.userId }), wednesdayMorning))
+      .then(() => staysBusiness.createStay(anotherHostUser, _.extend(todayThursQ, { userId: guest3User.userId }), wednedayAfternoon));
+    });
+
+    it('orders guest stays correctly', function() {
+      return staysBusiness.getDayStaysAndStats(todayThursQ, todayThurs)
+      .then(staysAndStats => {
+        let expectedGuestNightsByHost = {};
+        expectedGuestNightsByHost[hostUser.userId] = 2;
+        expectedGuestNightsByHost[anotherHostUser.userId] = 1;
+
+        assert.deepEqual(staysAndStats.guestNightsByHost, expectedGuestNightsByHost);
+
+        let expectedGuestStays = [
+          // 1 previous guest-night, created before noon cut-off but after next (higher priority) one
+          {
+            stayDate: 20170112,
+            userId: guest2User.userId,
+            isHost: false,
+            hostId: anotherHostUser.userId,
+            priority: 1,
+            dateCreated: wednesdayMorning.toISOString(),
+            dateUpdated: wednesdayMorning.toISOString(),
+          },
+
+          // 2 previous guest-night, created before noon cut-off
+          {
+            stayDate: 20170112,
+            userId: guestUser.userId,
+            isHost: false,
+            hostId: hostUser.userId,
+            priority: 2,
+            dateCreated: tues.toISOString(),
+            dateUpdated: tues.toISOString(),
+          },
+
+          // 1 previous guest-night, but created after noon cut-off
+          {
+            stayDate: 20170112,
+            userId: guest3User.userId,
+            isHost: false,
+            hostId: anotherHostUser.userId,
+            priority: 1,
+            dateCreated: wednedayAfternoon.toISOString(),
+            dateUpdated: wednedayAfternoon.toISOString(),
+          },
+        ];
+        //staysAndStats.guestStays.forEach((stay, i) => assertDeepStayMinusDates(stay, expectedGuestStays[i]));
+        assert.deepEqual(staysAndStats.guestStays, expectedGuestStays);
+      });
+    });
   });
 
 });

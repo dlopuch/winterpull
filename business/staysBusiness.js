@@ -90,7 +90,7 @@ exports.createStay = function(requestingUser, stayReq, _curDate) {
       isHost: stayUser.isHost
     };
 
-    return stayModel.createStay(stayReq.y, stayReq.m, stayReq.d, stay);
+    return stayModel.createStay(stayReq.y, stayReq.m, stayReq.d, stay, now);
   })
   .then(() => stayModel.getStays({y: stayReq.y, m: stayReq.m, d: stayReq.d, userId: stayUser.userId}))
   .then(stays => {
@@ -115,19 +115,19 @@ exports.createStay = function(requestingUser, stayReq, _curDate) {
  * @return {'notOpen' | 'open' | 'fcfs' | 'closed'} state
  */
 exports.getGuestlistState = function(stayQuery, _curDate) {
-  let now = _curDate ? moment(_curDate) : moment();
+  let now = _curDate ? moment(_curDate) : moment(); // don't mutate
 
   if (!stayQuery.y || !stayQuery.m || !stayQuery.d) {
     throw new UserError('Invalid date specified. Must specify year, month, day');
   }
 
-  let stayDate = moment.parseZone(`${stayQuery.y}-${stayQuery.m}-${stayQuery.d}-Z`, 'YYYY-M-D-Z'); // in UTC time
+  let stayDate = moment.parseZone(`${stayQuery.y}-${stayQuery.m}-${stayQuery.d}--08:00`, 'YYYY-M-D-Z'); // in PST time
 
   if (now.isBefore( moment(stayDate).subtract(7, 'd')) ) {
     return 'notOpen';
   } else if (now.isBefore( utcMidnightToPstNoon(dateUtils.getPreviousWednesday(stayQuery)) )) {
     return 'open';
-  } else if (now.isBefore(stayDate)) {
+  } else if (now.isBefore(moment(stayDate).endOf('day'))) {  // allow all day long
     return 'fcfs';
   } else {
     return 'closed';
@@ -191,16 +191,19 @@ exports.getDayStaysAndStats = function(stayQuery, _curDate) {
 
 
     // Now retrieve the guest-night counts for all hosts and stick them inside `stats`
-    stats.guestNightsByHost = {};
+    let guestNightsByHost = {};
 
     let hosts = _(stats.guestStays).map('hostId').uniq().value();
     let promiseHostCounts = hosts.map(hostId =>
       stayModel.countHostGuestNights(hostId, stayQuery)
-      .then(guestNightCount => stats.guestNightsByHost[hostId] = guestNightCount)
+      .then(guestNightCount => guestNightsByHost[hostId] = guestNightCount)
     );
 
     return Promise.all(promiseHostCounts)
-    .then(() => stats);
+    .then(() => {
+      stats.guestNightsByHost = guestNightsByHost;
+      return stats;
+    });
   })
   .then(stats => {
     // Now add host guest-nights to the guest stays and sort them appropriately
@@ -208,14 +211,15 @@ exports.getDayStaysAndStats = function(stayQuery, _curDate) {
       guestStay.priority = stats.guestNightsByHost[guestStay.hostId];
     });
 
-    // Order guest stays by their hosts' priority numbers
-    stats.guestStays = _.sortBy(stats.guestStays, ['priority', 'dateCreated']);
+    let lastWednesdayNoon = dateUtils.getPreviousWednesday(now, true).add(12, 'hours').toISOString();
 
-    // HEYDAN TODO:
-    //   Need to resolve guestlist.
-    //   1. Calculate previous wednesday noon
-    //   2. Guest stays before that wednesday noon get sorted by priority and dateCreated
-    //   3. Guest stays after that wednesday noon get sorted by dateCreated
+    // Guest stay ordering rules:
+    // Guest stays created before last wednesday noon get sorted by priority then date created.
+    // Guest stays created after last wednesday noon get sorted by dateCreated
+    stats.guestStays = _.sortBy(stats.guestStays, [
+      guestStay => guestStay.dateCreated < lastWednesdayNoon ? guestStay.priority : Infinity,
+      'dateCreated'
+    ]);
 
     return stats;
   });
